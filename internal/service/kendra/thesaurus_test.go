@@ -316,7 +316,7 @@ resource "aws_kendra_index" "test" {
 }
 
 resource "aws_s3_bucket" "test" {
-  bucket = %[1]q
+  bucket        = %[1]q
   force_destroy = true
 }
 
@@ -334,12 +334,12 @@ func testAccThesaurusConfig_basic(rName string) string {
 		fmt.Sprintf(`
 resource "aws_kendra_thesaurus" "test" {
   index_id = aws_kendra_index.id
-  name = %[1]q
+  name     = %[1]q
   role_arn = aws_iam_role.test_arn
 
   source_s3_path {
-   bucket = aws_s3_bucket.test.id
-   key = aws_s3_object.test.key
+    bucket = aws_s3_bucket.test.id
+    key    = aws_s3_object.test.key
   }
 }
 `, rName))
@@ -351,12 +351,12 @@ func testAccThesaurusConfig_tags1(rName, tag, value string) string {
 		fmt.Sprintf(`
 resource "aws_kendra_thesaurus" "test" {
   index_id = aws_kendra_index.id
-  name = %[1]q
+  name     = %[1]q
   role_arn = aws_iam_role.test_arn
 
   source_s3_path {
-   bucket = aws_s3_bucket.test.id
-   key = aws_s3_object.test.key
+    bucket = aws_s3_bucket.test.id
+    key    = aws_s3_object.test.key
   }
 
   tags = {
@@ -372,12 +372,12 @@ func testAccThesaurusConfig_tags2(rName, tag1, value1, tag2, value2 string) stri
 		fmt.Sprintf(`
 resource "aws_kendra_thesaurus" "test" {
   index_id = aws_kendra_index.id
-  name = %[1]q
+  name     = %[1]q
   role_arn = aws_iam_role.test_arn
 
   source_s3_path {
-   bucket = aws_s3_bucket.test.id
-   key = aws_s3_object.test.key
+    bucket = aws_s3_bucket.test.id
+    key    = aws_s3_object.test.key
   }
 
   tags = {
