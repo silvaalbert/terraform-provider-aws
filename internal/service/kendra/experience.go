@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
-	"github.com/hashicorp/terraform-provider-aws/internal/flex"
 	"github.com/hashicorp/terraform-provider-aws/internal/tfresource"
 	"github.com/hashicorp/terraform-provider-aws/internal/verify"
 )
@@ -45,15 +44,15 @@ func ResourceExperience() *schema.Resource {
 				Computed: true,
 			},
 			"configuration": {
-				Type:     schema.TypeList,
-				Optional: true,
-				MaxItems: 1,
+				Type:             schema.TypeList,
+				Optional:         true,
+				MaxItems:         1,
+				DiffSuppressFunc: verify.SuppressMissingOptionalConfigurationBlock,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"content_source_configuration": {
 							Type:     schema.TypeList,
 							Optional: true,
-							Computed: true,
 							MaxItems: 1,
 							AtLeastOneOf: []string{
 								"configuration.0.content_source_configuration",
@@ -207,7 +206,7 @@ func resourceExperienceCreate(ctx context.Context, d *schema.ResourceData, meta 
 
 	d.SetId(fmt.Sprintf("%s/%s", id, indexId))
 
-	if _, err := waitExperienceCreated(ctx, conn, id, indexId, d.Timeout(schema.TimeoutCreate)); err != nil {
+	if err := waitExperienceCreated(ctx, conn, id, indexId, d.Timeout(schema.TimeoutCreate)); err != nil {
 		return diag.Errorf("waiting for Amazon Kendra Experience (%s) create: %s", d.Id(), err)
 	}
 
@@ -222,7 +221,7 @@ func resourceExperienceRead(ctx context.Context, d *schema.ResourceData, meta in
 		return diag.FromErr(err)
 	}
 
-	out, err := findExperienceByID(ctx, conn, id, indexId)
+	out, err := FindExperienceByID(ctx, conn, id, indexId)
 
 	if !d.IsNewResource() && tfresource.NotFound(err) {
 		log.Printf("[WARN] Kendra Experience (%s) not found, removing from state", d.Id())
@@ -239,7 +238,7 @@ func resourceExperienceRead(ctx context.Context, d *schema.ResourceData, meta in
 		Region:    meta.(*conns.AWSClient).Region,
 		Service:   "kendra",
 		AccountID: meta.(*conns.AWSClient).AccountID,
-		Resource:  fmt.Sprintf("experience/%s", id),
+		Resource:  fmt.Sprintf("index/%s/experience/%s", indexId, id),
 	}.String()
 
 	d.Set("arn", arn)
@@ -274,8 +273,8 @@ func resourceExperienceUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		IndexId: aws.String(indexId),
 	}
 
-	if v, ok := d.GetOk("configuration"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
-		in.Configuration = expandConfiguration(v.([]interface{}))
+	if d.HasChange("configuration") {
+		in.Configuration = expandConfiguration(d.Get("configuration").([]interface{}))
 	}
 
 	if d.HasChange("description") {
@@ -296,7 +295,7 @@ func resourceExperienceUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		return diag.Errorf("updating Kendra Experience (%s): %s", d.Id(), err)
 	}
 
-	if _, err := waitExperienceUpdated(ctx, conn, id, indexId, d.Timeout(schema.TimeoutUpdate)); err != nil {
+	if err := waitExperienceUpdated(ctx, conn, id, indexId, d.Timeout(schema.TimeoutUpdate)); err != nil {
 		return diag.Errorf("waiting for Kendra Experience (%s) update: %s", d.Id(), err)
 	}
 
@@ -326,14 +325,14 @@ func resourceExperienceDelete(ctx context.Context, d *schema.ResourceData, meta 
 		return diag.Errorf("deleting Kendra Experience (%s): %s", d.Id(), err)
 	}
 
-	if _, err := waitExperienceDeleted(ctx, conn, id, indexId, d.Timeout(schema.TimeoutDelete)); err != nil {
+	if err := waitExperienceDeleted(ctx, conn, id, indexId, d.Timeout(schema.TimeoutDelete)); err != nil {
 		return diag.Errorf("waiting for Kendra Experience (%s) to be deleted: %s", d.Id(), err)
 	}
 
 	return nil
 }
 
-func waitExperienceCreated(ctx context.Context, conn *kendra.Client, id, indexId string, timeout time.Duration) (*kendra.DescribeExperienceOutput, error) {
+func waitExperienceCreated(ctx context.Context, conn *kendra.Client, id, indexId string, timeout time.Duration) error {
 	stateConf := &resource.StateChangeConf{
 		Pending:                   []string{string(types.ExperienceStatusCreating)},
 		Target:                    []string{string(types.ExperienceStatusActive)},
@@ -348,13 +347,12 @@ func waitExperienceCreated(ctx context.Context, conn *kendra.Client, id, indexId
 		if out.Status == types.ExperienceStatusFailed {
 			tfresource.SetLastError(err, errors.New(aws.ToString(out.ErrorMessage)))
 		}
-		return out, err
 	}
 
-	return nil, err
+	return err
 }
 
-func waitExperienceUpdated(ctx context.Context, conn *kendra.Client, id, indexId string, timeout time.Duration) (*kendra.DescribeExperienceOutput, error) {
+func waitExperienceUpdated(ctx context.Context, conn *kendra.Client, id, indexId string, timeout time.Duration) error {
 	stateConf := &resource.StateChangeConf{
 		Pending:                   []string{},
 		Target:                    []string{string(types.ExperienceStatusActive)},
@@ -371,10 +369,10 @@ func waitExperienceUpdated(ctx context.Context, conn *kendra.Client, id, indexId
 		}
 	}
 
-	return nil, err
+	return err
 }
 
-func waitExperienceDeleted(ctx context.Context, conn *kendra.Client, id, indexId string, timeout time.Duration) (*kendra.DescribeExperienceOutput, error) {
+func waitExperienceDeleted(ctx context.Context, conn *kendra.Client, id, indexId string, timeout time.Duration) error {
 	stateConf := &resource.StateChangeConf{
 		Pending: []string{string(types.ExperienceStatusDeleting)},
 		Target:  []string{},
@@ -389,12 +387,12 @@ func waitExperienceDeleted(ctx context.Context, conn *kendra.Client, id, indexId
 		}
 	}
 
-	return nil, err
+	return err
 }
 
 func statusExperience(ctx context.Context, conn *kendra.Client, id, indexId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		out, err := findExperienceByID(ctx, conn, id, indexId)
+		out, err := FindExperienceByID(ctx, conn, id, indexId)
 		if tfresource.NotFound(err) {
 			return nil, "", nil
 		}
@@ -407,7 +405,7 @@ func statusExperience(ctx context.Context, conn *kendra.Client, id, indexId stri
 	}
 }
 
-func findExperienceByID(ctx context.Context, conn *kendra.Client, id, indexId string) (*kendra.DescribeExperienceOutput, error) {
+func FindExperienceByID(ctx context.Context, conn *kendra.Client, id, indexId string) (*kendra.DescribeExperienceOutput, error) {
 	in := &kendra.DescribeExperienceInput{
 		Id:      aws.String(id),
 		IndexId: aws.String(indexId),
@@ -541,7 +539,7 @@ func expandContentSourceConfiguration(tfMap map[string]interface{}) *types.Conte
 	result := &types.ContentSourceConfiguration{}
 
 	if v, ok := tfMap["data_source_ids"].(*schema.Set); ok && v.Len() > 0 {
-		result.DataSourceIds = aws.ToStringSlice(flex.ExpandStringList(v.List()))
+		result.DataSourceIds = expandStringList(v.List())
 	}
 
 	if v, ok := tfMap["direct_put_content"].(bool); ok {
@@ -549,7 +547,7 @@ func expandContentSourceConfiguration(tfMap map[string]interface{}) *types.Conte
 	}
 
 	if v, ok := tfMap["faq_ids"].(*schema.Set); ok && v.Len() > 0 {
-		result.FaqIds = aws.ToStringSlice(flex.ExpandStringList(v.List()))
+		result.FaqIds = expandStringList(v.List())
 	}
 
 	return result
@@ -564,6 +562,18 @@ func expandUserIdentityConfiguration(tfMap map[string]interface{}) *types.UserId
 
 	if v, ok := tfMap["identity_attribute_name"].(string); ok && v != "" {
 		result.IdentityAttributeName = aws.String(v)
+	}
+
+	return result
+}
+
+func expandStringList(tfList []interface{}) []string {
+	var result []string
+
+	for _, rawVal := range tfList {
+		if v, ok := rawVal.(string); ok && v != "" {
+			result = append(result, v)
+		}
 	}
 
 	return result

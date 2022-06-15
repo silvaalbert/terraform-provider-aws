@@ -2,22 +2,18 @@ package kendra_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/kendra"
-	"github.com/aws/aws-sdk-go-v2/service/kendra/types"
-	"github.com/aws/aws-sdk-go/service/identitystore"
-	"github.com/aws/aws-sdk-go/service/ssoadmin"
 	sdkacctest "github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/hashicorp/terraform-provider-aws/internal/acctest"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 	tfkendra "github.com/hashicorp/terraform-provider-aws/internal/service/kendra"
+	"github.com/hashicorp/terraform-provider-aws/internal/tfresource"
 	"github.com/hashicorp/terraform-provider-aws/names"
 )
 
@@ -89,7 +85,7 @@ func TestExperienceParseResourceID(t *testing.T) {
 	}
 }
 
-func TestAccKendraExperience_basic(t *testing.T) {
+func testAccExperience_basic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long-running test in short mode")
 	}
@@ -111,7 +107,7 @@ func TestAccKendraExperience_basic(t *testing.T) {
 				Config: testAccExperienceConfig_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckExperienceExists(resourceName),
-					acctest.MatchResourceAttrRegionalARN(resourceName, "arn", "kendra", regexp.MustCompile(`experience/.+$`)),
+					acctest.MatchResourceAttrRegionalARN(resourceName, "arn", "kendra", regexp.MustCompile(`index/.+/experience/.+$`)),
 					resource.TestCheckResourceAttr(resourceName, "endpoints.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttrPair(resourceName, "index_id", "aws_kendra_index.test", "id"),
@@ -129,7 +125,7 @@ func TestAccKendraExperience_basic(t *testing.T) {
 	})
 }
 
-func TestAccKendraExperience_disappears(t *testing.T) {
+func testAccExperience_disappears(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long-running test in short mode")
 	}
@@ -159,7 +155,7 @@ func TestAccKendraExperience_disappears(t *testing.T) {
 	})
 }
 
-func TestAccKendraExperience_description(t *testing.T) {
+func testAccExperience_Description(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long-running test in short mode")
 	}
@@ -213,11 +209,6 @@ func TestAccKendraExperience_description(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-			{
 				Config: testAccExperienceConfig_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckExperienceExists(resourceName),
@@ -235,13 +226,13 @@ func TestAccKendraExperience_description(t *testing.T) {
 	})
 }
 
-func TestAccKendraExperience_name(t *testing.T) {
+func testAccExperience_Name(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long-running test in short mode")
 	}
 
-	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
-	rNameUpdated := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
+	rName1 := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
+	rName2 := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
 	resourceName := "aws_kendra_experience.test"
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -255,17 +246,17 @@ func TestAccKendraExperience_name(t *testing.T) {
 		CheckDestroy:      testAccCheckExperienceDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccExperienceConfig_basic(rName),
+				Config: testAccExperienceConfig_basic(rName1),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckExperienceExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "name", rName1),
 				),
 			},
 			{
-				Config: testAccExperienceConfig_basic(rNameUpdated),
+				Config: testAccExperienceConfig_name(rName1, rName2),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckExperienceExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "name", rNameUpdated),
+					resource.TestCheckResourceAttr(resourceName, "name", rName2),
 				),
 			},
 			{
@@ -277,7 +268,7 @@ func TestAccKendraExperience_name(t *testing.T) {
 	})
 }
 
-func TestAccKendraExperience_Configuration_ContentSourceConfiguration_DirectPutContent(t *testing.T) {
+func testAccExperience_Configuration_ContentSourceConfiguration_DirectPutContent(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long-running test in short mode")
 	}
@@ -319,11 +310,6 @@ func TestAccKendraExperience_Configuration_ContentSourceConfiguration_DirectPutC
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-			{
 				Config: testAccExperienceConfig_Configuration_ContentSourceConfiguration_DirectPutContent(rName, true),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckExperienceExists(resourceName),
@@ -336,21 +322,24 @@ func TestAccKendraExperience_Configuration_ContentSourceConfiguration_DirectPutC
 	})
 }
 
-func TestAccKendraExperience_Configuration_UserIdentityConfiguration(t *testing.T) {
+func testAccExperience_Configuration_UserIdentityConfiguration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long-running test in short mode")
 	}
 
+	userId := os.Getenv("IDENTITY_STORE_USER_ID")
+	if userId == "" {
+		t.Skip("Environment variable IDENTITY_STORE_USER_ID is not set")
+	}
+
 	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
 	resourceName := "aws_kendra_experience.test"
-	userId := "92677ec453-1546651e-79c4-4554-91fa-00b43ccfa245"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
 			acctest.PreCheck(t)
 			acctest.PreCheckOrganizationManagementAccount(t)
 			testAccPreCheck(t)
-			testAccPreCheckIdentityStoreUser(t, userId)
 		},
 		ErrorCheck:        acctest.ErrorCheck(t, names.KendraEndpointID),
 		ProviderFactories: acctest.ProviderFactories,
@@ -387,24 +376,14 @@ func testAccCheckExperienceDestroy(s *terraform.State) error {
 			return err
 		}
 
-		input := &kendra.DescribeExperienceInput{
-			Id:      aws.String(id),
-			IndexId: aws.String(indexId),
-		}
-
-		_, err = conn.DescribeExperience(context.TODO(), input)
-
-		var resourceNotFoundException *types.ResourceNotFoundException
-
-		if errors.As(err, &resourceNotFoundException) {
+		_, err = tfkendra.FindExperienceByID(context.TODO(), conn, id, indexId)
+		if tfresource.NotFound(err) {
 			continue
 		}
 
 		if err != nil {
 			return err
 		}
-
-		return fmt.Errorf("Expected Kendra Experience to be destroyed, %s found", rs.Primary.ID)
 	}
 
 	return nil
@@ -428,64 +407,12 @@ func testAccCheckExperienceExists(name string) resource.TestCheckFunc {
 			return err
 		}
 
-		_, err = conn.DescribeExperience(context.TODO(), &kendra.DescribeExperienceInput{
-			Id:      aws.String(id),
-			IndexId: aws.String(indexId),
-		})
-
+		_, err = tfkendra.FindExperienceByID(context.TODO(), conn, id, indexId)
 		if err != nil {
-			return fmt.Errorf("Error describing Kendra Experience: %s", err.Error())
+			return err
 		}
 
 		return nil
-	}
-}
-
-func testAccPreCheck(t *testing.T) {
-	conn := acctest.Provider.Meta().(*conns.AWSClient).KendraConn
-
-	input := &kendra.ListIndicesInput{}
-
-	_, err := conn.ListIndices(context.TODO(), input)
-
-	if acctest.PreCheckSkipError(err) {
-		t.Skipf("skipping acceptance testing: %s", err)
-	}
-
-	if err != nil {
-		t.Fatalf("unexpected PreCheck error: %s", err)
-	}
-}
-
-func testAccPreCheckIdentityStoreUser(t *testing.T, userId string) {
-	ssoAdminConn := acctest.Provider.Meta().(*conns.AWSClient).SSOAdminConn
-	identityStoreConn := acctest.Provider.Meta().(*conns.AWSClient).IdentityStoreConn
-
-	input := &ssoadmin.ListInstancesInput{
-		MaxResults: aws.Int64(1),
-	}
-
-	output, err := ssoAdminConn.ListInstancesWithContext(context.TODO(), input)
-	if err != nil {
-		t.Fatalf("error listing SSO Admin instances: %s", err)
-	}
-
-	if output == nil || len(output.Instances) == 0 {
-		t.Skip("skipping acceptance testing: no SSO Admin instances")
-	}
-
-	listUsersInput := &identitystore.DescribeUserInput{
-		IdentityStoreId: output.Instances[0].IdentityStoreId,
-		UserId:          aws.String(userId),
-	}
-
-	resp, err := identityStoreConn.DescribeUserWithContext(context.TODO(), listUsersInput)
-	if err != nil {
-		t.Fatalf("error describing IdentityStore User (%s): %s", userId, err)
-	}
-
-	if resp == nil {
-		t.Skipf("skipping acceptance testing: no matching IdentityStore user with userID %s", userId)
 	}
 }
 
@@ -637,6 +564,20 @@ resource "aws_kendra_experience" "test" {
   role_arn    = aws_iam_role.test.arn
 }
 `, rName, description))
+}
+
+func testAccExperienceConfig_name(rName, name string) string {
+	return acctest.ConfigCompose(
+		testAccExperienceBaseConfig(rName),
+		fmt.Sprintf(`
+resource "aws_kendra_experience" "test" {
+  depends_on = [aws_iam_role_policy_attachment.experience]
+
+  index_id = aws_kendra_index.test.id
+  name     = %[1]q
+  role_arn = aws_iam_role.test.arn
+}
+`, name))
 }
 
 func testAccExperienceConfig_Configuration_ContentSourceConfiguration_DirectPutContent(rName string, directPutContent bool) string {
