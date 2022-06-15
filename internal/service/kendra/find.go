@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/terraform-provider-aws/internal/tfresource"
 )
 
-func findThesaurusByID(ctx context.Context, conn *kendra.Client, id, indexId string) (*kendra.DescribeThesaurusOutput, error) {
+func FindThesaurusByID(ctx context.Context, conn *kendra.Client, id, indexId string) (*kendra.DescribeThesaurusOutput, error) {
 	in := &kendra.DescribeThesaurusInput{
 		Id:      aws.String(id),
 		IndexId: aws.String(indexId),
@@ -19,8 +19,8 @@ func findThesaurusByID(ctx context.Context, conn *kendra.Client, id, indexId str
 
 	out, err := conn.DescribeThesaurus(ctx, in)
 
-	var notFound *types.ResourceNotFoundException
-	if errors.As(err, &notFound) {
+	var resourceNotFoundException *types.ResourceNotFoundException
+	if errors.As(err, &resourceNotFoundException) {
 		return nil, &resource.NotFoundError{
 			LastError:   err,
 			LastRequest: in,

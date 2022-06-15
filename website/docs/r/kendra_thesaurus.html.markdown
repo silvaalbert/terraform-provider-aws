@@ -55,6 +55,14 @@ In addition to all arguments above, the following attributes are exported:
 * `arn` - ARN of the thesaurus.
 * `tags_all` - A map of tags assigned to the resource, including those inherited from the provider [`default_tags` configuration block](/docs/providers/aws/index.html#default_tags-configuration-block).
 
+## Timeouts
+
+`aws_kendra_thesaurus` provides the following [Timeouts](https://www.terraform.io/docs/configuration/blocks/resources/syntax.html#operation-timeouts) configuration options:
+
+* `create` - (Optional, Default: `30m`)
+* `update` - (Optional, Default: `30m`)
+* `delete` - (Optional, Default: `30m`)
+
 ## Import
 
 `aws_kendra_thesaurus` can be imported using the unique identifiers of the thesaurus and index separated by a slash (`/`), e.g.,

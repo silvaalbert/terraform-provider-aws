@@ -2,20 +2,17 @@ package kendra_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/kendra"
-	"github.com/aws/aws-sdk-go-v2/service/kendra/types"
 	sdkacctest "github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/hashicorp/terraform-provider-aws/internal/acctest"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 	tfkendra "github.com/hashicorp/terraform-provider-aws/internal/service/kendra"
+	"github.com/hashicorp/terraform-provider-aws/internal/tfresource"
 	"github.com/hashicorp/terraform-provider-aws/names"
 )
 
@@ -87,7 +84,7 @@ func TestThesaurusParseResourceID(t *testing.T) {
 	}
 }
 
-func TestAccKendraThesaurus_basic(t *testing.T) {
+func testAccThesaurus_basic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long-running test in short mode")
 	}
@@ -114,9 +111,9 @@ func TestAccKendraThesaurus_basic(t *testing.T) {
 					resource.TestCheckResourceAttrPair(resourceName, "role_arn", "aws_iam_role.test", "arn"),
 					resource.TestCheckResourceAttr(resourceName, "source_s3_path.#", "1"),
 					resource.TestCheckResourceAttrPair(resourceName, "source_s3_path.0.bucket", "aws_s3_bucket.test", "id"),
-					resource.TestCheckResourceAttr(resourceName, "source_s3_path.0.key", "test/suggestions.txt"),
+					resource.TestCheckResourceAttrPair(resourceName, "source_s3_path.0.key", "aws_s3_object.test", "key"),
 					resource.TestCheckResourceAttrSet(resourceName, "status"),
-					acctest.MatchResourceAttrRegionalARN(resourceName, "arn", "kendra", regexp.MustCompile(`thesaurus:+.`)),
+					acctest.MatchResourceAttrRegionalARN(resourceName, "arn", "kendra", regexp.MustCompile(`thesaurus/.+$`)),
 				),
 			},
 			{
@@ -128,7 +125,7 @@ func TestAccKendraThesaurus_basic(t *testing.T) {
 	})
 }
 
-func TestAccKendraThesaurus_disappears(t *testing.T) {
+func testAccThesaurus_disappears(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long-running test in short mode")
 	}
@@ -158,7 +155,7 @@ func TestAccKendraThesaurus_disappears(t *testing.T) {
 	})
 }
 
-func TestAccKendraThesaurus_tags(t *testing.T) {
+func testAccThesaurus_tags(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long-running test in short mode")
 	}
@@ -210,6 +207,173 @@ func TestAccKendraThesaurus_tags(t *testing.T) {
 	})
 }
 
+func testAccThesaurus_Description(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping long-running test in short mode")
+	}
+
+	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
+	resourceName := "aws_kendra_thesaurus.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.PreCheck(t)
+			acctest.PreCheckPartitionHasService(names.KendraEndpointID, t)
+			testAccPreCheck(t)
+		},
+		ErrorCheck:        acctest.ErrorCheck(t, names.KendraEndpointID),
+		ProviderFactories: acctest.ProviderFactories,
+		CheckDestroy:      testAccCheckThesaurusDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccThesaurusConfig_Description(rName, "description1"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckThesaurusExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "description", "description1"),
+				),
+			},
+			{
+				Config: testAccThesaurusConfig_Description(rName, "description2"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckThesaurusExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "description", "description2"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func testAccThesaurus_Name(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping long-running test in short mode")
+	}
+
+	rName1 := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
+	rName2 := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
+	resourceName := "aws_kendra_query_suggestions_block_list.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.PreCheck(t)
+			acctest.PreCheckPartitionHasService(names.KendraEndpointID, t)
+			testAccPreCheck(t)
+		},
+		ErrorCheck:        acctest.ErrorCheck(t, names.KendraEndpointID),
+		ProviderFactories: acctest.ProviderFactories,
+		CheckDestroy:      testAccCheckThesaurusDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccThesaurusConfig_basic(rName1),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckThesaurusExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", rName1),
+				),
+			},
+			{
+				Config: testAccThesaurusConfig_Name(rName1, rName2),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckThesaurusExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", rName2),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func testAccThesaurus_RoleARN(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping long-running test in short mode")
+	}
+
+	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
+	resourceName := "aws_kendra_thesaurus.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.PreCheck(t)
+			acctest.PreCheckPartitionHasService(names.KendraEndpointID, t)
+			testAccPreCheck(t)
+		},
+		ErrorCheck:        acctest.ErrorCheck(t, names.KendraEndpointID),
+		ProviderFactories: acctest.ProviderFactories,
+		CheckDestroy:      testAccCheckThesaurusDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccThesaurusConfig_basic(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckThesaurusExists(resourceName),
+					resource.TestCheckResourceAttrPair(resourceName, "role_arn", "aws_iam_role.test", "arn"),
+				),
+			},
+			{
+				Config: testAccThesaurusConfig_RoleARN(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckThesaurusExists(resourceName),
+					resource.TestCheckResourceAttrPair(resourceName, "role_arn", "aws_iam_role.test2", "arn"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func testAccThesaurus_SourceS3Path(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping long-running test in short mode")
+	}
+
+	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
+	resourceName := "aws_kendra_thesaurus.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			acctest.PreCheck(t)
+			acctest.PreCheckPartitionHasService(names.KendraEndpointID, t)
+			testAccPreCheck(t)
+		},
+		ErrorCheck:        acctest.ErrorCheck(t, names.KendraEndpointID),
+		ProviderFactories: acctest.ProviderFactories,
+		CheckDestroy:      testAccCheckThesaurusDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccThesaurusConfig_basic(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckThesaurusExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "source_s3_path.#", "1"),
+					resource.TestCheckResourceAttrPair(resourceName, "source_s3_path.0.bucket", "aws_s3_bucket.test", "id"),
+					resource.TestCheckResourceAttrPair(resourceName, "source_s3_path.0.key", "aws_s3_object.test", "key")),
+			},
+			{
+				Config: testAccThesaurusConfig_SourceS3Path(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckThesaurusExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "source_s3_path.#", "1"),
+					resource.TestCheckResourceAttrPair(resourceName, "source_s3_path.0.bucket", "aws_s3_bucket.test", "id"),
+					resource.TestCheckResourceAttrPair(resourceName, "source_s3_path.0.key", "aws_s3_object.test2", "key")),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func testAccCheckThesaurusDestroy(s *terraform.State) error {
 	conn := acctest.Provider.Meta().(*conns.AWSClient).KendraConn
 
@@ -223,21 +387,15 @@ func testAccCheckThesaurusDestroy(s *terraform.State) error {
 			return err
 		}
 
-		input := &kendra.DescribeThesaurusInput{
-			Id:      aws.String(id),
-			IndexId: aws.String(indexId),
+		_, err = tfkendra.FindThesaurusByID(context.TODO(), conn, id, indexId)
+
+		if tfresource.NotFound(err) {
+			continue
 		}
 
-		_, err = conn.DescribeThesaurus(context.TODO(), input)
 		if err != nil {
-			var notFound *types.ResourceNotFoundException
-			if errors.As(err, &notFound) {
-				return nil
-			}
 			return err
 		}
-
-		return fmt.Errorf("Expected Kendra Thesaurus to be destroyed, %s found", rs.Primary.ID)
 	}
 
 	return nil
@@ -260,10 +418,8 @@ func testAccCheckThesaurusExists(name string) resource.TestCheckFunc {
 		}
 
 		conn := acctest.Provider.Meta().(*conns.AWSClient).KendraConn
-		_, err = conn.DescribeThesaurus(context.TODO(), &kendra.DescribeThesaurusInput{
-			Id:      aws.String(id),
-			IndexId: aws.String(indexId),
-		})
+
+		_, err = tfkendra.FindThesaurusByID(context.TODO(), conn, id, indexId)
 
 		if err != nil {
 			return fmt.Errorf("Error describing Kendra Thesaurus: %s", err.Error())
@@ -275,42 +431,54 @@ func testAccCheckThesaurusExists(name string) resource.TestCheckFunc {
 
 func testAccThesaurusBaseConfig(rName string) string {
 	return fmt.Sprintf(`
+data "aws_partition" "current" {}
+
+data "aws_iam_policy_document" "assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    effect  = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["kendra.${data.aws_partition.current.dns_suffix}"]
+    }
+  }
+}
 resource "aws_iam_role" "test" {
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "kendra.${data.aws_partition.current.dns_suffix}"
-      }
-    }]
-  })
+  name               = %[1]q
+  path               = "/"
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
+}
 
-  name = %[1]q
-
-  inline_policy {
-    name = "test"
-    policy = jsonencode({
-      Version = "2012-10-17"
-      Statement = [{
-        Action = [
-          "kendra:*",
-          "s3:GetBucketLocation",
-          "s3:GetObject",
-          "s3:ListBucket",
-        ]
-        Effect = "Allow"
-        Resource = [
-          aws_s3_bucket.test.arn,
-          "${aws_s3_bucket.test.arn}/*"
-        ]
-      }]
-    })
+data "aws_iam_policy_document" "test" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "kendra:*",
+      "s3:GetBucketLocation",
+      "s3:GetObject",
+      "s3:ListBucket"
+    ]
+    resources = [
+      aws_s3_bucket.test.arn,
+      "${aws_s3_bucket.test.arn}/*"
+    ]
   }
 }
 
+resource "aws_iam_policy" "test" {
+  name        = %[1]q
+  description = "Allow Kendra to access S3"
+  policy      = data.aws_iam_policy_document.test.json
+}
+
+resource "aws_iam_role_policy_attachment" "test" {
+  role       = aws_iam_role.test.name
+  policy_arn = aws_iam_policy.test.arn
+}
+
 resource "aws_kendra_index" "test" {
+  depends_on = [aws_iam_role_policy_attachment.test]
+
   name     = %[1]q
   role_arn = aws_iam_role.test.arn
 }
@@ -333,9 +501,9 @@ func testAccThesaurusConfig_basic(rName string) string {
 		testAccThesaurusBaseConfig(rName),
 		fmt.Sprintf(`
 resource "aws_kendra_thesaurus" "test" {
-  index_id = aws_kendra_index.id
+  index_id = aws_kendra_index.test.id
   name     = %[1]q
-  role_arn = aws_iam_role.test_arn
+  role_arn = aws_iam_role.test.arn
 
   source_s3_path {
     bucket = aws_s3_bucket.test.id
@@ -350,9 +518,9 @@ func testAccThesaurusConfig_tags1(rName, tag, value string) string {
 		testAccThesaurusBaseConfig(rName),
 		fmt.Sprintf(`
 resource "aws_kendra_thesaurus" "test" {
-  index_id = aws_kendra_index.id
+  index_id = aws_kendra_index.test.id
   name     = %[1]q
-  role_arn = aws_iam_role.test_arn
+  role_arn = aws_iam_role.test.arn
 
   source_s3_path {
     bucket = aws_s3_bucket.test.id
@@ -371,9 +539,9 @@ func testAccThesaurusConfig_tags2(rName, tag1, value1, tag2, value2 string) stri
 		testAccThesaurusBaseConfig(rName),
 		fmt.Sprintf(`
 resource "aws_kendra_thesaurus" "test" {
-  index_id = aws_kendra_index.id
+  index_id = aws_kendra_index.test.id
   name     = %[1]q
-  role_arn = aws_iam_role.test_arn
+  role_arn = aws_iam_role.test.arn
 
   source_s3_path {
     bucket = aws_s3_bucket.test.id
@@ -386,4 +554,96 @@ resource "aws_kendra_thesaurus" "test" {
   }
 }
 `, rName, tag1, value1, tag2, value2))
+}
+
+func testAccThesaurusConfig_Description(rName, description string) string {
+	return acctest.ConfigCompose(
+		testAccThesaurusBaseConfig(rName),
+		fmt.Sprintf(`
+resource "aws_kendra_thesaurus" "test" {
+  description = %[1]q
+  index_id    = aws_kendra_index.test.id
+  name        = %[2]q
+  role_arn    = aws_iam_role.test.arn
+
+  source_s3_path {
+    bucket = aws_s3_bucket.test.id
+    key    = aws_s3_object.test.key
+  }
+}
+`, description, rName))
+}
+
+func testAccThesaurusConfig_Name(rName, name string) string {
+	return acctest.ConfigCompose(
+		testAccThesaurusBaseConfig(rName),
+		fmt.Sprintf(`
+resource "aws_kendra_thesaurus" "test" {
+  index_id = aws_kendra_index.test.id
+  name     = %[1]q
+  role_arn = aws_iam_role.test.arn
+
+  source_s3_path {
+    bucket = aws_s3_bucket.test.id
+    key    = aws_s3_object.test.key
+  }
+}
+`, name))
+}
+
+func testAccThesaurusConfig_RoleARN(rName string) string {
+	return acctest.ConfigCompose(
+		testAccThesaurusBaseConfig(rName),
+		fmt.Sprintf(`
+resource "aws_iam_role" "test2" {
+  name               = "%[1]s-2"
+  path               = "/"
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
+}
+
+resource "aws_iam_policy" "test2" {
+  name        = "%[1]s-2"
+  description = "Allow Kendra to access S3"
+  policy      = data.aws_iam_policy_document.test.json
+}
+
+resource "aws_iam_role_policy_attachment" "test2" {
+  role       = aws_iam_role.test2.name
+  policy_arn = aws_iam_policy.test2.arn
+}
+
+resource "aws_kendra_thesaurus" "test" {
+  index_id = aws_kendra_index.test.id
+  name     = %[1]q
+  role_arn = aws_iam_role.test2.arn
+
+  source_s3_path {
+    bucket = aws_s3_bucket.test.id
+    key    = aws_s3_object.test.key
+  }
+}
+`, rName))
+}
+
+func testAccThesaurusConfig_SourceS3Path(rName string) string {
+	return acctest.ConfigCompose(
+		testAccThesaurusBaseConfig(rName),
+		fmt.Sprintf(`
+resource "aws_s3_object" "test2" {
+  bucket  = aws_s3_bucket.test.bucket
+  content = "test2"
+  key     = "test/new_suggestions.txt"
+}
+
+resource "aws_kendra_thesaurus" "test" {
+  index_id = aws_kendra_index.test.id
+  name     = %[1]q
+  role_arn = aws_iam_role.test.arn
+
+  source_s3_path {
+    bucket = aws_s3_bucket.test.id
+    key    = aws_s3_object.test2.key
+  }
+}
+`, rName))
 }

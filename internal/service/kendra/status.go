@@ -10,7 +10,7 @@ import (
 
 func statusThesaurus(ctx context.Context, conn *kendra.Client, id, indexId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		out, err := findThesaurusByID(ctx, conn, id, indexId)
+		out, err := FindThesaurusByID(ctx, conn, id, indexId)
 		if tfresource.NotFound(err) {
 			return nil, "", nil
 		}

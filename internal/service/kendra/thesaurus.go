@@ -140,7 +140,7 @@ func resourceThesaurusRead(ctx context.Context, d *schema.ResourceData, meta int
 		return diag.FromErr(err)
 	}
 
-	out, err := findThesaurusByID(ctx, conn, id, indexId)
+	out, err := FindThesaurusByID(ctx, conn, id, indexId)
 
 	if !d.IsNewResource() && tfresource.NotFound(err) {
 		log.Printf("[WARN] Kendra Thesaurus (%s) not found, removing from state", d.Id())
@@ -171,7 +171,7 @@ func resourceThesaurusRead(ctx context.Context, d *schema.ResourceData, meta int
 		return diag.Errorf("setting complex argument: %s", err)
 	}
 
-	tags, err := ListTags(ctx, conn, d.Id())
+	tags, err := ListTags(ctx, conn, arn)
 	if err != nil {
 		return diag.Errorf("listing tags for Kendra Thesaurus (%s): %s", d.Id(), err)
 	}
@@ -257,8 +257,8 @@ func resourceThesaurusDelete(ctx context.Context, d *schema.ResourceData, meta i
 		IndexId: aws.String(indexId),
 	})
 
-	var notFound *types.ResourceNotFoundException
-	if errors.As(err, &notFound) {
+	var resourceNotFoundException *types.ResourceNotFoundException
+	if errors.As(err, &resourceNotFoundException) {
 		return nil
 	}
 
