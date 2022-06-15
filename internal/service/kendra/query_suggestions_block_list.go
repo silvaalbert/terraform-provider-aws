@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -49,10 +50,15 @@ func ResourceQuerySuggestionsBlockList() *schema.Resource {
 			"index_id": {
 				Type:     schema.TypeString,
 				Required: true,
+				ForceNew: true,
 			},
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
+			},
+			"query_suggestions_block_list_id": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 			"role_arn": {
 				Type:         schema.TypeString,
@@ -101,16 +107,37 @@ func resourceQuerySuggestionsBlockListCreate(ctx context.Context, d *schema.Reso
 		SourceS3Path: expandSourceS3Path(d.Get("source_s3_path").([]interface{})),
 	}
 
+	if v, ok := d.GetOk("description"); ok {
+		in.Description = aws.String(v.(string))
+	}
+
 	if len(tags) > 0 {
 		in.Tags = Tags(tags.IgnoreAWS())
 	}
 
-	out, err := conn.CreateQuerySuggestionsBlockList(ctx, in)
+	outputRaw, err := tfresource.RetryWhen(
+		propagationTimeout,
+		func() (interface{}, error) {
+			return conn.CreateQuerySuggestionsBlockList(ctx, in)
+
+		},
+		func(err error) (bool, error) {
+			var validationException *types.ValidationException
+
+			if errors.As(err, &validationException) && strings.Contains(validationException.ErrorMessage(), "Please make sure your role exists and has `kendra.amazonaws.com` as trusted entity") {
+				return true, err
+			}
+
+			return false, err
+		},
+	)
+
 	if err != nil {
 		return diag.Errorf("creating Amazon Kendra QuerySuggestionsBlockList (%s): %s", d.Get("name").(string), err)
 	}
 
-	if out == nil {
+	out, ok := outputRaw.(*kendra.CreateQuerySuggestionsBlockListOutput)
+	if !ok || out == nil {
 		return diag.Errorf("creating Amazon Kendra QuerySuggestionsBlockList (%s): empty output", d.Get("name").(string))
 	}
 
@@ -136,7 +163,7 @@ func resourceQuerySuggestionsBlockListRead(ctx context.Context, d *schema.Resour
 		return diag.FromErr(err)
 	}
 
-	out, err := findQuerySuggestionsBlockListByID(ctx, conn, id, indexId)
+	out, err := FindQuerySuggestionsBlockListByID(ctx, conn, id, indexId)
 
 	if !d.IsNewResource() && tfresource.NotFound(err) {
 		log.Printf("[WARN] Kendra QuerySuggestionsBlockList (%s) not found, removing from state", d.Id())
@@ -153,13 +180,14 @@ func resourceQuerySuggestionsBlockListRead(ctx context.Context, d *schema.Resour
 		Region:    meta.(*conns.AWSClient).Region,
 		Service:   "kendra",
 		AccountID: meta.(*conns.AWSClient).AccountID,
-		Resource:  fmt.Sprintf("querysuggestionsblocklist/%s", id),
+		Resource:  fmt.Sprintf("index/%s/query-suggestions-block-list/%s", indexId, id),
 	}.String()
 
 	d.Set("arn", arn)
 	d.Set("description", out.Description)
 	d.Set("index_id", out.IndexId)
 	d.Set("name", out.Name)
+	d.Set("query_suggestions_block_list_id", id)
 	d.Set("role_arn", out.RoleArn)
 	d.Set("status", out.Status)
 
@@ -167,7 +195,7 @@ func resourceQuerySuggestionsBlockListRead(ctx context.Context, d *schema.Resour
 		return diag.Errorf("setting complex argument: %s", err)
 	}
 
-	tags, err := ListTags(ctx, conn, d.Id())
+	tags, err := ListTags(ctx, conn, arn)
 	if err != nil {
 		return diag.Errorf("listing tags for Kendra QuerySuggestionsBlockList (%s): %s", d.Id(), err)
 	}
@@ -217,7 +245,24 @@ func resourceQuerySuggestionsBlockListUpdate(ctx context.Context, d *schema.Reso
 		}
 
 		log.Printf("[DEBUG] Updating Kendra QuerySuggestionsBlockList (%s): %#v", d.Id(), input)
-		_, err = conn.UpdateQuerySuggestionsBlockList(ctx, input)
+
+		_, err = tfresource.RetryWhen(
+			propagationTimeout,
+			func() (interface{}, error) {
+				return conn.UpdateQuerySuggestionsBlockList(ctx, input)
+
+			},
+			func(err error) (bool, error) {
+				var validationException *types.ValidationException
+
+				if errors.As(err, &validationException) && strings.Contains(validationException.ErrorMessage(), "Please make sure your role exists and has `kendra.amazonaws.com` as trusted entity") {
+					return true, err
+				}
+
+				return false, err
+			},
+		)
+
 		if err != nil {
 			return diag.Errorf("updating Kendra QuerySuggestionsBlockList (%s): %s", d.Id(), err)
 		}

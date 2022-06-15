@@ -35,7 +35,7 @@ resource "aws_kendra_query_suggestions_block_list" "example" {
 
 The following arguments are required:
 
-* `index_id`- (Required) The identifier of the index for a block list.
+* `index_id`- (Required, Forces new resource) The identifier of the index for a block list.
 * `name` - (Required) The identifier of the index for a block list.
 * `role_arn` - (Required) The IAM (Identity and Access Management) role used to access the block list text file in S3.
 * `source_s3_path` - (Required) The S3 path where your block list text file sits in S3. Detailed below.
@@ -55,12 +55,21 @@ The following arguments are optional:
 In addition to all arguments above, the following attributes are exported:
 
 * `arn` - ARN of the block list.
+* `query_suggestions_block_list_id` - The unique indentifier of the block list.
 * `tags_all` - A map of tags assigned to the resource, including those inherited from the provider [`default_tags` configuration block](/docs/providers/aws/index.html#default_tags-configuration-block).
+
+## Timeouts
+
+`aws_kendra_query_suggestions_block_list` provides the following [Timeouts](https://www.terraform.io/docs/configuration/blocks/resources/syntax.html#operation-timeouts) configuration options:
+
+* `create` - (Optional, Default: `30m`)
+* `update` - (Optional, Default: `30m`)
+* `delete` - (Optional, Default: `30m`)
 
 ## Import
 
-`aws_kendra_query_suggestion_block_list` can be imported using the unique identifiers of the block list and index separated by a slash (`/`), e.g.,
+`aws_kendra_query_suggestions_block_list` can be imported using the unique identifiers of the block list and index separated by a slash (`/`), e.g.,
 
 ```
-$ terraform import aws_kendra_query_suggestions_blocklist.example blocklist-123456780/idx-8012925589
+$ terraform import aws_kendra_query_suggestions_block_list.example blocklist-123456780/idx-8012925589
 ```
