@@ -7036,3 +7036,23 @@ func FindVerifiedAccessTrustProviderByID(ctx context.Context, conn *ec2.EC2, id 
 
 	return out.VerifiedAccessTrustProviders[0], nil
 }
+
+func FindVerifiedAccessInstanceByID(ctx context.Context, conn *ec2.EC2, id string) (*ec2.VerifiedAccessInstance, error) {
+	in := &ec2.DescribeVerifiedAccessInstancesInput{
+		VerifiedAccessInstanceIds: aws.StringSlice([]string{id}),
+	}
+	out, err := conn.DescribeVerifiedAccessInstancesWithContext(ctx, in)
+
+	if tfawserr.ErrCodeEquals(err, errCodeInvalidVerifiedAccessInstanceIdNotFound) {
+		return nil, &retry.NotFoundError{
+			LastError:   err,
+			LastRequest: in,
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return out.VerifiedAccessInstances[0], nil
+}
