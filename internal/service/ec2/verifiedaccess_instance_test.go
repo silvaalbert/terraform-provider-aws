@@ -176,22 +176,6 @@ func testAccCheckVerifiedAccessInstanceExists(ctx context.Context, name string, 
 	}
 }
 
-func testAccPreCheck(t *testing.T) {
-	conn := acctest.Provider.Meta().(*conns.AWSClient).EC2Conn()
-	ctx := context.Background()
-
-	input := &ec2.DescribeVerifiedAccessInstancesInput{}
-	_, err := conn.DescribeVerifiedAccessInstancesWithContext(ctx, input)
-
-	if acctest.PreCheckSkipError(err) {
-		t.Skipf("skipping acceptance testing: %s", err)
-	}
-
-	if err != nil {
-		t.Fatalf("unexpected PreCheck error: %s", err)
-	}
-}
-
 func testAccVerifiedAccessInstanceConfig_basic(description string) string {
 	return fmt.Sprintf(`
 resource "aws_verifiedaccess_instance" "test" {
