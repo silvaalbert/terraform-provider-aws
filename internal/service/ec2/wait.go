@@ -1645,7 +1645,7 @@ func WaitTransitGatewayVPCAttachmentUpdated(ctx context.Context, conn *ec2.EC2, 
 
 func WaitVerifiedAccessEndpointCreated(ctx context.Context, conn *ec2.EC2, id string, timeout time.Duration) (*ec2.VerifiedAccessEndpoint, error) {
 	stateConf := &retry.StateChangeConf{
-		Pending:                   []string{},
+		Pending:                   []string{ec2.VerifiedAccessEndpointStatusCodePending},
 		Target:                    []string{ec2.VerifiedAccessEndpointStatusCodeActive},
 		Refresh:                   StatusVerifiedAccessEndpoint(ctx, conn, id),
 		Timeout:                   timeout,
@@ -1681,10 +1681,12 @@ func WaitVerifiedAccessEndpointUpdated(ctx context.Context, conn *ec2.EC2, id st
 
 func WaitVerifiedAccessEndpointDeleted(ctx context.Context, conn *ec2.EC2, id string, timeout time.Duration) (*ec2.VerifiedAccessEndpoint, error) {
 	stateConf := &retry.StateChangeConf{
-		Pending: []string{ec2.VerifiedAccessEndpointStatusCodeDeleting},
-		Target:  []string{},
-		Refresh: StatusVerifiedAccessEndpoint(ctx, conn, id),
-		Timeout: timeout,
+		Pending:    []string{ec2.VerifiedAccessEndpointStatusCodeDeleting},
+		Target:     []string{},
+		Refresh:    StatusVerifiedAccessEndpoint(ctx, conn, id),
+		Timeout:    timeout,
+		Delay:      10 * time.Second,
+		MinTimeout: 3 * time.Second,
 	}
 
 	outputRaw, err := stateConf.WaitForStateContext(ctx)

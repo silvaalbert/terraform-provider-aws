@@ -1420,11 +1420,11 @@ func StatusVerifiedAccessEndpoint(ctx context.Context, conn *ec2.EC2, id string)
 		out, err := FindVerifiedAccessEndpointByID(ctx, conn, id)
 
 		if tfresource.NotFound(err) {
-			return nil, "xx", nil
+			return nil, "", nil
 		}
 
 		if err != nil {
-			return nil, "XX", err
+			return nil, "", err
 		}
 
 		return out, aws.StringValue(out.Status.Code), nil
