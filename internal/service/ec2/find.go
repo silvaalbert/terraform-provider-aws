@@ -7056,3 +7056,23 @@ func FindVerifiedAccessInstanceByID(ctx context.Context, conn *ec2.EC2, id strin
 
 	return out.VerifiedAccessInstances[0], nil
 }
+
+func FindVerifiedAccessTrustProviderAttachment(ctx context.Context, conn *ec2.EC2, verifiedAccessTrustProviderId, verifiedAccessInstanceId string) (*ec2.VerifiedAccessTrustProviderCondensed, error) {
+	out, err := FindVerifiedAccessInstanceByID(ctx, conn, verifiedAccessInstanceId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if out != nil && len(out.VerifiedAccessTrustProviders) > 0 {
+		for _, trustProvider := range out.VerifiedAccessTrustProviders {
+			if aws.StringValue(trustProvider.VerifiedAccessTrustProviderId) == verifiedAccessTrustProviderId {
+				return trustProvider, nil
+			}
+		}
+	}
+	return nil, &retry.NotFoundError{
+		LastError:   err,
+		LastRequest: verifiedAccessTrustProviderId,
+	}
+}
