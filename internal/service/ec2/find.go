@@ -7017,13 +7017,12 @@ func FindInstanceStateByID(ctx context.Context, conn *ec2.EC2, id string) (*ec2.
 	return instanceState, nil
 }
 
-func FindVerifiedAccessTrustProviderByID(ctx context.Context, conn *ec2.EC2, id string) (*ec2.VerifiedAccessTrustProvider, error) {
-	in := &ec2.DescribeVerifiedAccessTrustProvidersInput{
-		VerifiedAccessTrustProviderIds: aws.StringSlice([]string{id}),
+func FindVerifiedAccessGroupByID(ctx context.Context, conn *ec2.EC2, id string) (*ec2.VerifiedAccessGroup, error) {
+	in := &ec2.DescribeVerifiedAccessGroupsInput{
+		VerifiedAccessGroupIds: aws.StringSlice([]string{id}),
 	}
-	out, err := conn.DescribeVerifiedAccessTrustProvidersWithContext(ctx, in)
-
-	if tfawserr.ErrCodeEquals(err, errCodeInvalidVerifiedAccessTrustProviderIdNotFound) {
+	out, err := conn.DescribeVerifiedAccessGroupsWithContext(ctx, in)
+	if tfawserr.ErrCodeEquals(err, errCodeInvalidVerifiedAccessGroupIdNotFound) {
 		return nil, &retry.NotFoundError{
 			LastError:   err,
 			LastRequest: in,
@@ -7034,7 +7033,7 @@ func FindVerifiedAccessTrustProviderByID(ctx context.Context, conn *ec2.EC2, id 
 		return nil, err
 	}
 
-	return out.VerifiedAccessTrustProviders[0], nil
+	return out.VerifiedAccessGroups[0], nil
 }
 
 func FindVerifiedAccessInstanceByID(ctx context.Context, conn *ec2.EC2, id string) (*ec2.VerifiedAccessInstance, error) {
@@ -7075,4 +7074,24 @@ func FindVerifiedAccessTrustProviderAttachment(ctx context.Context, conn *ec2.EC
 		LastError:   err,
 		LastRequest: verifiedAccessTrustProviderId,
 	}
+}
+
+func FindVerifiedAccessTrustProviderByID(ctx context.Context, conn *ec2.EC2, id string) (*ec2.VerifiedAccessTrustProvider, error) {
+	in := &ec2.DescribeVerifiedAccessTrustProvidersInput{
+		VerifiedAccessTrustProviderIds: aws.StringSlice([]string{id}),
+	}
+	out, err := conn.DescribeVerifiedAccessTrustProvidersWithContext(ctx, in)
+
+	if tfawserr.ErrCodeEquals(err, errCodeInvalidVerifiedAccessTrustProviderIdNotFound) {
+		return nil, &retry.NotFoundError{
+			LastError:   err,
+			LastRequest: in,
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return out.VerifiedAccessTrustProviders[0], nil
 }
