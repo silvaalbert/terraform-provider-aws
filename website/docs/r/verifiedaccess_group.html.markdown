@@ -3,12 +3,12 @@ subcategory: "Verified Access"
 layout: "aws"
 page_title: "AWS: aws_verifiedaccess_group"
 description: |-
-  Terraform resource for managing a Verified Access Group.
+  Terraform resource for managing an AWS Verified Access Group.
 ---
 
 # Resource: aws_verifiedaccess_group
 
-Terraform resource for managing a Verified Access Group.
+Terraform resource for managing an AWS Verified Access Group.
 
 ## Example Usage
 
@@ -67,7 +67,7 @@ In addition to all arguments above, the following attributes are exported:
 
 ## Import
 
-Verified Access Groups can be imported using the `id`, e.g.,
+AWS Verified Access Groups can be imported using the `id`, e.g.,
 
 ```
 $ terraform import aws_verifiedaccess_group.example vagr-8012925589

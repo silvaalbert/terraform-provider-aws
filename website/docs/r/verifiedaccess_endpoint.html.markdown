@@ -3,12 +3,12 @@ subcategory: "Verified Access"
 layout: "aws"
 page_title: "AWS: aws_verifiedaccess_endpoint"
 description: |-
-  Terraform resource for managing a Verified Access Endpoint.
+  Terraform resource for managing an AWS Verified Access Endpoint.
 ---
 
 # Resource: aws_verifiedaccess_endpoint
 
-Terraform resource for managing a Verified Access Endpoint.
+Terraform resource for managing an AWS Verified Access Endpoint.
 
 ## Example Usage
 
@@ -91,7 +91,7 @@ In addition to all arguments above, the following attributes are exported:
 
 ## Import
 
-Verified Access Endpoints can be imported using the `id`, e.g.,
+AWS Verified Access Endpoints can be imported using the `id`, e.g.,
 
 ```
 $ terraform import aws_verifiedaccess_endpoint.example vae-8012925589

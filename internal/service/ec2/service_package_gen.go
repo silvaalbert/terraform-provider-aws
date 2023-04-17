@@ -937,12 +937,22 @@ func (p *servicePackage) SDKResources(ctx context.Context) []*types.ServicePacka
 			},
 		},
 		{
+			Factory:  ResourceVerifiedAccessEndpointPolicy,
+			TypeName: "aws_verifiedaccess_endpoint_policy",
+			Name:     "Verified Access Endpoint Policy",
+		},
+		{
 			Factory:  ResourceVerifiedAccessGroup,
 			TypeName: "aws_verifiedaccess_group",
 			Name:     "Verified Access Group",
 			Tags: &types.ServicePackageResourceTags{
 				IdentifierAttribute: "id",
 			},
+		},
+		{
+			Factory:  ResourceVerifiedAccessGroupPolicy,
+			TypeName: "aws_verifiedaccess_group_policy",
+			Name:     "Verified Access Group Policy",
 		},
 		{
 			Factory:  ResourceVerifiedAccessInstance,
