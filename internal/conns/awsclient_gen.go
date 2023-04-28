@@ -10,6 +10,7 @@ import (
 	cloudwatchlogs_sdkv2 "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/comprehend"
 	"github.com/aws/aws-sdk-go-v2/service/computeoptimizer"
+	directoryservice_sdkv2 "github.com/aws/aws-sdk-go-v2/service/directoryservice"
 	"github.com/aws/aws-sdk-go-v2/service/docdbelastic"
 	ec2_sdkv2 "github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/fis"
@@ -169,6 +170,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/imagebuilder"
 	"github.com/aws/aws-sdk-go/service/inspector"
+	"github.com/aws/aws-sdk-go/service/internetmonitor"
 	"github.com/aws/aws-sdk-go/service/iot"
 	"github.com/aws/aws-sdk-go/service/iot1clickdevicesservice"
 	"github.com/aws/aws-sdk-go/service/iot1clickprojects"
@@ -344,6 +346,7 @@ type AWSClient struct {
 
 	httpClient *http.Client
 
+	dsClient        lazyClient[*directoryservice_sdkv2.Client]
 	ec2Client       lazyClient[*ec2_sdkv2.Client]
 	lambdaClient    lazyClient[*lambda_sdkv2.Client]
 	logsClient      lazyClient[*cloudwatchlogs_sdkv2.Client]
@@ -491,6 +494,7 @@ type AWSClient struct {
 	imagebuilderConn                 *imagebuilder.Imagebuilder
 	inspectorConn                    *inspector.Inspector
 	inspector2Client                 *inspector2.Client
+	internetmonitorConn              *internetmonitor.InternetMonitor
 	iotConn                          *iot.IoT
 	iot1clickdevicesConn             *iot1clickdevicesservice.IoT1ClickDevicesService
 	iot1clickprojectsConn            *iot1clickprojects.IoT1ClickProjects
@@ -982,6 +986,10 @@ func (client *AWSClient) DSConn() *directoryservice.DirectoryService {
 	return client.dsConn
 }
 
+func (client *AWSClient) DSClient() *directoryservice_sdkv2.Client {
+	return client.dsClient.Client()
+}
+
 func (client *AWSClient) DataBrewConn() *gluedatabrew.GlueDataBrew {
 	return client.databrewConn
 }
@@ -1232,6 +1240,10 @@ func (client *AWSClient) InspectorConn() *inspector.Inspector {
 
 func (client *AWSClient) Inspector2Client() *inspector2.Client {
 	return client.inspector2Client
+}
+
+func (client *AWSClient) InternetMonitorConn() *internetmonitor.InternetMonitor {
+	return client.internetmonitorConn
 }
 
 func (client *AWSClient) IoTConn() *iot.IoT {
