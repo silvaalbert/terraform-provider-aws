@@ -104,6 +104,7 @@ func resourceVerifiedAccessEndpointPolicyRead(ctx context.Context, d *schema.Res
 	}
 
 	d.Set("policy_document", out.PolicyDocument)
+	d.Set("verified_access_endpoint_id", d.Id())
 
 	return nil
 }

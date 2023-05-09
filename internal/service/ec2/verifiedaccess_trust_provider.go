@@ -85,9 +85,17 @@ func ResourceVerifiedAccessTrustProvider() *schema.Resource {
 							Optional: true,
 						},
 						"client_secret": {
-							Type:     schema.TypeString,
-							ForceNew: true,
-							Optional: true,
+							Type:      schema.TypeString,
+							ForceNew:  true,
+							Optional:  true,
+							Sensitive: true,
+							Computed:  true,
+							DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+								if new != "REDACTED" && old != "" {
+									return true
+								}
+								return false
+							},
 						},
 						"issuer": {
 							Type:         schema.TypeString,

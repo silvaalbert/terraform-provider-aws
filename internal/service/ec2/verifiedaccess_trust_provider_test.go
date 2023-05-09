@@ -127,7 +127,7 @@ func TestAccVerifiedAccessTrustProvider_oidcOptions(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "oidc_options.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "oidc_options.0.authorization_endpoint", authorizationEndpoint),
 					resource.TestCheckResourceAttr(resourceName, "oidc_options.0.client_id", clientId),
-					resource.TestCheckResourceAttr(resourceName, "oidc_options.0.client_secret", clientSecret),
+					resource.TestCheckResourceAttr(resourceName, "oidc_options.0.client_secret", "REDACTED"),
 					resource.TestCheckResourceAttr(resourceName, "oidc_options.0.issuer", issuer),
 					resource.TestCheckResourceAttr(resourceName, "oidc_options.0.scope", scope),
 					resource.TestCheckResourceAttr(resourceName, "oidc_options.0.token_endpoint", tokenEndpoint),

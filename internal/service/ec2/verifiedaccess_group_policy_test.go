@@ -8,7 +8,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/hashicorp/aws-sdk-go-base/v2/awsv1shim/v2/tfawserr"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/hashicorp/terraform-provider-aws/internal/acctest"
@@ -19,14 +18,14 @@ import (
 )
 
 func TestAccVerifiedAccessGroupPolicy_basic(t *testing.T) {
+	ctx := context.Background()
 	var verifiedaccessgrouppolicy ec2.GetVerifiedAccessGroupPolicyOutput
 	resourceName := "aws_verifiedaccess_group_policy.test"
 	policyDocument := "permit(principal, action, resource) \nwhen {\n    context.http_request.method == \"GET\"\n};"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
-			acctest.PreCheck(t)
-			acctest.PreCheckPartitionHasService(ec2.EndpointsID, t)
+			acctest.PreCheck(ctx, t)
 			testAccPreCheck(t)
 		},
 		ErrorCheck:               acctest.ErrorCheck(t, ec2.EndpointsID),
@@ -37,8 +36,9 @@ func TestAccVerifiedAccessGroupPolicy_basic(t *testing.T) {
 				Config: testAccVerifiedAccessGroupPolicyConfig_basic(policyDocument),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckVerifiedAccessGroupPolicyExists(resourceName, &verifiedaccessgrouppolicy),
-					resource.TestCheckResourceAttr(resourceName, "policy_document", policyDocument),),
+					resource.TestCheckResourceAttr(resourceName, "policy_document", policyDocument),
 					resource.TestCheckResourceAttrSet(resourceName, "verified_access_group_id"),
+				),
 			},
 			{
 				ResourceName:            resourceName,
@@ -51,15 +51,15 @@ func TestAccVerifiedAccessGroupPolicy_basic(t *testing.T) {
 }
 
 func TestAccVerifiedAccessGroupPolicy_disappears(t *testing.T) {
+	ctx := context.Background()
+	var verifiedaccessgrouppolicy ec2.GetVerifiedAccessGroupPolicyOutput
 
-	var verifiedaccessgrouppolicy ec2.GetVerifiedAccessGroupPolicyResponse
-	
 	resourceName := "aws_verifiedaccess_group_policy.test"
+	policyDocument := "permit(principal, action, resource) \nwhen {\n    context.http_request.method == \"GET\"\n};"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
-			acctest.PreCheck(t)
-			acctest.PreCheckPartitionHasService(ec2.EndpointsID, t)
+			acctest.PreCheck(ctx, t)
 			testAccPreCheck(t)
 		},
 		ErrorCheck:               acctest.ErrorCheck(t, ec2.EndpointsID),
@@ -67,10 +67,10 @@ func TestAccVerifiedAccessGroupPolicy_disappears(t *testing.T) {
 		CheckDestroy:             testAccCheckVerifiedAccessGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccVerifiedAccessGroupPolicyConfig_basic(rName, testAccVerifiedAccessGroupPolicyVersionNewer),
+				Config: testAccVerifiedAccessGroupPolicyConfig_basic(policyDocument),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckVerifiedAccessGroupPolicyExists(resourceName, &verifiedaccessgrouppolicy),
-					acctest.CheckResourceDisappears(acctest.Provider, tfec2.ResourceVerifiedAccessGroupPolicy(), resourceName),
+					acctest.CheckResourceDisappears(ctx, acctest.Provider, tfec2.ResourceVerifiedAccessGroupPolicy(), resourceName),
 				),
 				ExpectNonEmptyPlan: true,
 			},
@@ -79,7 +79,7 @@ func TestAccVerifiedAccessGroupPolicy_disappears(t *testing.T) {
 }
 
 func testAccCheckVerifiedAccessGroupPolicyDestroy(s *terraform.State) error {
-	conn := acctest.Provider.Meta().(*conns.AWSClient).Conn()
+	conn := acctest.Provider.Meta().(*conns.AWSClient).EC2Conn()
 	ctx := context.Background()
 
 	for _, rs := range s.RootModule().Resources {
@@ -90,13 +90,9 @@ func testAccCheckVerifiedAccessGroupPolicyDestroy(s *terraform.State) error {
 		input := &ec2.GetVerifiedAccessGroupPolicyInput{
 			VerifiedAccessGroupId: aws.String(rs.Primary.ID),
 		}
-		_, err := conn.GetVerifiedAccessGroupPolicyWithContext(ctx, &ec2.DescribeVerifiedAccessGroupPolicyInput{
-			VerifiedAccessGroupId: aws.String(rs.Primary.ID),
-		})
+		_, err := conn.GetVerifiedAccessGroupPolicyWithContext(ctx, input)
+
 		if err != nil {
-			if tfawserr.ErrCodeEquals(err, ec2.ErrCodeNotFoundException) {
-				return nil
-			}
 			return err
 		}
 
@@ -106,7 +102,7 @@ func testAccCheckVerifiedAccessGroupPolicyDestroy(s *terraform.State) error {
 	return nil
 }
 
-func testAccCheckVerifiedAccessGroupPolicyExists(name string, verifiedaccessgrouppolicy *ec2.DescribeVerifiedAccessGroupPolicyResponse) resource.TestCheckFunc {
+func testAccCheckVerifiedAccessGroupPolicyExists(name string, verifiedaccessgrouppolicy *ec2.GetVerifiedAccessGroupPolicyOutput) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[name]
 		if !ok {
@@ -117,34 +113,23 @@ func testAccCheckVerifiedAccessGroupPolicyExists(name string, verifiedaccessgrou
 			return create.Error(names.EC2, create.ErrActionCheckingExistence, tfec2.ResNameVerifiedAccessGroupPolicy, name, errors.New("not set"))
 		}
 
-		conn := acctest.Provider.Meta().(*conns.AWSClient).Conn()
+		conn := acctest.Provider.Meta().(*conns.AWSClient).EC2Conn()
 		ctx := context.Background()
-		resp, err := conn.DescribeVerifiedAccessGroupPolicyWithContext(ctx, &ec2.DescribeVerifiedAccessGroupPolicyInput{
-			VerifiedAccessGroupPolicyId: aws.String(rs.Primary.ID),
+		resp, err := conn.GetVerifiedAccessGroupPolicyWithContext(ctx, &ec2.GetVerifiedAccessGroupPolicyInput{
+			VerifiedAccessGroupId: aws.String(rs.Primary.ID),
 		})
 
 		if err != nil {
-			return create.Error(names., create.ErrActionCheckingExistence, tfec2.ResNameVerifiedAccessGroupPolicy, rs.Primary.ID, err)
+			return create.Error(names.EC2, create.ErrActionCheckingExistence, tfec2.ResNameVerifiedAccessGroup, rs.Primary.ID, err)
 		}
 
 		*verifiedaccessgrouppolicy = *resp
-
-		return nil
-	}
-}
-
-func testAccCheckVerifiedAccessGroupPolicyNotRecreated(before, after *ec2.DescribeVerifiedAccessGroupPolicyResponse) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		if before, after := aws.StringValue(before.VerifiedAccessGroupPolicyId), aws.StringValue(after.VerifiedAccessGroupPolicyId); before != after {
-			return create.Error(names., create.ErrActionCheckingNotRecreated, tfec2.ResNameVerifiedAccessGroupPolicy, aws.StringValue(before.VerifiedAccessGroupPolicyId), errors.New("recreated"))
-		}
-
 		return nil
 	}
 }
 
 func testAccVerifiedAccessGroupPolicyConfig_baseConfig() string {
-	return fmt.Sprint(`
+	return (`
 resource "aws_verifiedaccess_instance" "test" {}
 
 resource "aws_verifiedaccess_trust_provider" "test" {
@@ -168,7 +153,7 @@ resource "aws_verifiedaccess_group" "test" {
 }
 
 func testAccVerifiedAccessGroupPolicyConfig_basic(policy string) string {
-	return acctest.ConfigCompose(testAccVerifiedAccessGroupConfig_baseConfig(policy), fmt.Sprintf(`
+	return acctest.ConfigCompose(testAccVerifiedAccessGroupPolicyConfig_baseConfig(), fmt.Sprintf(`
 resource "aws_verifiedaccess_group_policy" "test" {
   policy_document          = %[1]q
   verified_access_group_id = aws_verifiedaccess_group.test.id

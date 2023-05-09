@@ -2,83 +2,32 @@ package ec2_test
 
 // import (
 // 	"context"
+// 	"errors"
 // 	"fmt"
-// 	"regexp"
-// 	"strings"
 // 	"testing"
 
 // 	"github.com/aws/aws-sdk-go/aws"
 // 	"github.com/aws/aws-sdk-go/service/ec2"
-// 	"github.com/hashicorp/aws-sdk-go-base/v2/awsv1shim/v2/tfawserr"
-// 	sdkacctest "github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 // 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-// 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 // 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 // 	"github.com/hashicorp/terraform-provider-aws/internal/acctest"
 // 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 // 	"github.com/hashicorp/terraform-provider-aws/internal/create"
 // 	tfec2 "github.com/hashicorp/terraform-provider-aws/internal/service/ec2"
+// 	"github.com/hashicorp/terraform-provider-aws/names"
 // )
 
-// func TestVerifiedAccessEndpointPolicyExampleUnitTest(t *testing.T) {
-// 	testCases := []struct {
-// 		TestName string
-// 		Input    string
-// 		Expected string
-// 		Error    bool
-// 	}{
-// 		{
-// 			TestName: "empty",
-// 			Input:    "",
-// 			Expected: "",
-// 			Error:    true,
-// 		},
-// 		{
-// 			TestName: "descriptive name",
-// 			Input:    "some input",
-// 			Expected: "some output",
-// 			Error:    false,
-// 		},
-// 		{
-// 			TestName: "another descriptive name",
-// 			Input:    "more input",
-// 			Expected: "more output",
-// 			Error:    false,
-// 		},
-// 	}
-
-// 	for _, testCase := range testCases {
-// 		t.Run(testCase.TestName, func(t *testing.T) {
-// 			got, err := tfec2.FunctionFromResource(testCase.Input)
-
-// 			if err != nil && !testCase.Error {
-// 				t.Errorf("got error (%s), expected no error", err)
-// 			}
-
-// 			if err == nil && testCase.Error {
-// 				t.Errorf("got (%s) and no error, expected error", got)
-// 			}
-
-// 			if got != testCase.Expected {
-// 				t.Errorf("got %s, expected %s", got, testCase.Expected)
-// 			}
-// 		})
-// 	}
-// }
-
-// func TestAccEC2VerifiedAccessEndpointPolicy_basic(t *testing.T) {
-// 	if testing.Short() {
-// 		t.Skip("skipping long-running test in short mode")
-// 	}
-
-// 	var verifiedaccessendpointpolicy ec2.DescribeVerifiedAccessEndpointPolicyResponse
-// 	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
-// 	resourceName := "aws_ec2_verifiedaccess_endpoint_policy.test"
+// func TestAccVerifiedAccessEndpointPolicy_basic(t *testing.T) {
+// 	ctx := context.Background()
+// 	var verifiedaccessgrouppolicy ec2.GetVerifiedAccessEndpointPolicyOutput
+// 	resourceName := "aws_verifiedaccess_endpoint_policy.test"
+// 	policyDocument := "permit(principal, action, resource) \nwhen {\n    context.http_request.method == \"GET\"\n};"
+// 	key := acctest.TLSRSAPrivateKeyPEM(t, 2048)
+// 	certificate := acctest.TLSRSAX509SelfSignedCertificatePEM(t, key, "test.com")
 
 // 	resource.ParallelTest(t, resource.TestCase{
 // 		PreCheck: func() {
-// 			acctest.PreCheck(t)
-// 			acctest.PreCheckPartitionHasService(ec2.EndpointsID, t)
+// 			acctest.PreCheck(ctx, t)
 // 			testAccPreCheck(t)
 // 		},
 // 		ErrorCheck:               acctest.ErrorCheck(t, ec2.EndpointsID),
@@ -86,18 +35,11 @@ package ec2_test
 // 		CheckDestroy:             testAccCheckVerifiedAccessEndpointPolicyDestroy,
 // 		Steps: []resource.TestStep{
 // 			{
-// 				Config: testAccVerifiedAccessEndpointPolicyConfig_basic(rName),
+// 				Config: testAccVerifiedAccessEndpointPolicyConfig_basic(certificate, key, policyDocument),
 // 				Check: resource.ComposeTestCheckFunc(
-// 					testAccCheckVerifiedAccessEndpointPolicyExists(resourceName, &verifiedaccessendpointpolicy),
-// 					resource.TestCheckResourceAttr(resourceName, "auto_minor_version_upgrade", "false"),
-// 					resource.TestCheckResourceAttrSet(resourceName, "maintenance_window_start_time.0.day_of_week"),
-// 					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "user.*", map[string]string{
-// 						"console_access": "false",
-// 						"groups.#":       "0",
-// 						"username":       "Test",
-// 						"password":       "TestTest1234",
-// 					}),
-// 					acctest.MatchResourceAttrRegionalARN(resourceName, "arn", "ec2", regexp.MustCompile(`verifiedaccessendpointpolicy:+.`)),
+// 					testAccCheckVerifiedAccessEndpointPolicyExists(resourceName, &verifiedaccessgrouppolicy),
+// 					resource.TestCheckResourceAttr(resourceName, "policy_document", policyDocument),
+// 					resource.TestCheckResourceAttrSet(resourceName, "verified_access_endpoint_id"),
 // 				),
 // 			},
 // 			{
@@ -110,19 +52,18 @@ package ec2_test
 // 	})
 // }
 
-// func TestAccEC2VerifiedAccessEndpointPolicy_disappears(t *testing.T) {
-// 	if testing.Short() {
-// 		t.Skip("skipping long-running test in short mode")
-// 	}
+// func TestAccVerifiedAccessEndpointPolicy_disappears(t *testing.T) {
+// 	ctx := context.Background()
+// 	var verifiedaccessgrouppolicy ec2.GetVerifiedAccessEndpointPolicyOutput
 
-// 	var verifiedaccessendpointpolicy ec2.DescribeVerifiedAccessEndpointPolicyResponse
-// 	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
-// 	resourceName := "aws_ec2_verifiedaccess_endpoint_policy.test"
+// 	resourceName := "aws_verifiedaccess_endpoint_policy.test"
+// 	policyDocument := "permit(principal, action, resource) \nwhen {\n    context.http_request.method == \"GET\"\n};"
+// 	key := acctest.TLSRSAPrivateKeyPEM(t, 2048)
+// 	certificate := acctest.TLSRSAX509SelfSignedCertificatePEM(t, key, "test.com")
 
 // 	resource.ParallelTest(t, resource.TestCase{
 // 		PreCheck: func() {
-// 			acctest.PreCheck(t)
-// 			acctest.PreCheckPartitionHasService(ec2.EndpointsID, t)
+// 			acctest.PreCheck(ctx, t)
 // 			testAccPreCheck(t)
 // 		},
 // 		ErrorCheck:               acctest.ErrorCheck(t, ec2.EndpointsID),
@@ -130,10 +71,10 @@ package ec2_test
 // 		CheckDestroy:             testAccCheckVerifiedAccessEndpointPolicyDestroy,
 // 		Steps: []resource.TestStep{
 // 			{
-// 				Config: testAccVerifiedAccessEndpointPolicyConfig_basic(rName, testAccVerifiedAccessEndpointPolicyVersionNewer),
+// 				Config: testAccVerifiedAccessEndpointPolicyConfig_basic(certificate, key, policyDocument),
 // 				Check: resource.ComposeTestCheckFunc(
-// 					testAccCheckVerifiedAccessEndpointPolicyExists(resourceName, &verifiedaccessendpointpolicy),
-// 					acctest.CheckResourceDisappears(acctest.Provider, tfec2.ResourceVerifiedAccessEndpointPolicy(), resourceName),
+// 					testAccCheckVerifiedAccessEndpointPolicyExists(resourceName, &verifiedaccessgrouppolicy),
+// 					acctest.CheckResourceDisappears(ctx, acctest.Provider, tfec2.ResourceVerifiedAccessEndpointPolicy(), resourceName),
 // 				),
 // 				ExpectNonEmptyPlan: true,
 // 			},
@@ -150,16 +91,12 @@ package ec2_test
 // 			continue
 // 		}
 
-// 		input := &ec2.DescribeVerifiedAccessEndpointPolicyInput{
-// 			VerifiedAccessEndpointPolicyId: aws.String(rs.Primary.ID),
+// 		input := &ec2.GetVerifiedAccessEndpointPolicyInput{
+// 			VerifiedAccessEndpointId: aws.String(rs.Primary.ID),
 // 		}
-// 		_, err := conn.DescribeVerifiedAccessEndpointPolicyWithContext(ctx, &ec2.DescribeVerifiedAccessEndpointPolicyInput{
-// 			VerifiedAccessEndpointPolicyId: aws.String(rs.Primary.ID),
-// 		})
+// 		_, err := conn.GetVerifiedAccessEndpointPolicyWithContext(ctx, input)
+
 // 		if err != nil {
-// 			if tfawserr.ErrCodeEquals(err, ec2.ErrCodeNotFoundException) {
-// 				return nil
-// 			}
 // 			return err
 // 		}
 
@@ -169,7 +106,7 @@ package ec2_test
 // 	return nil
 // }
 
-// func testAccCheckVerifiedAccessEndpointPolicyExists(name string, verifiedaccessendpointpolicy *ec2.DescribeVerifiedAccessEndpointPolicyResponse) resource.TestCheckFunc {
+// func testAccCheckVerifiedAccessEndpointPolicyExists(name string, verifiedaccessgrouppolicy *ec2.GetVerifiedAccessEndpointPolicyOutput) resource.TestCheckFunc {
 // 	return func(s *terraform.State) error {
 // 		rs, ok := s.RootModule().Resources[name]
 // 		if !ok {
@@ -182,69 +119,128 @@ package ec2_test
 
 // 		conn := acctest.Provider.Meta().(*conns.AWSClient).EC2Conn()
 // 		ctx := context.Background()
-// 		resp, err := conn.DescribeVerifiedAccessEndpointPolicyWithContext(ctx, &ec2.DescribeVerifiedAccessEndpointPolicyInput{
-// 			VerifiedAccessEndpointPolicyId: aws.String(rs.Primary.ID),
+// 		resp, err := conn.GetVerifiedAccessEndpointPolicyWithContext(ctx, &ec2.GetVerifiedAccessEndpointPolicyInput{
+// 			VerifiedAccessEndpointId: aws.String(rs.Primary.ID),
 // 		})
 
 // 		if err != nil {
-// 			return create.Error(names.EC2, create.ErrActionCheckingExistence, tfec2.ResNameVerifiedAccessEndpointPolicy, rs.Primary.ID, err)
+// 			return create.Error(names.EC2, create.ErrActionCheckingExistence, tfec2.ResNameVerifiedAccessGroup, rs.Primary.ID, err)
 // 		}
 
-// 		*verifiedaccessendpointpolicy = *resp
-
+// 		*verifiedaccessgrouppolicy = *resp
 // 		return nil
 // 	}
 // }
 
-// func testAccPreCheck(t *testing.T) {
-// 	conn := acctest.Provider.Meta().(*conns.AWSClient).EC2Conn()
-// 	ctx := context.Background()
+// func testAccVerifiedAccessEndpointPolicyConfig_baseConfig(certificate, key string) string {
 
-// 	input := &ec2.ListVerifiedAccessEndpointPolicysInput{}
-// 	_, err := conn.ListVerifiedAccessEndpointPolicysWithContext(ctx, input)
-
-// 	if acctest.PreCheckSkipError(err) {
-// 		t.Skipf("skipping acceptance testing: %s", err)
-// 	}
-
-// 	if err != nil {
-// 		t.Fatalf("unexpected PreCheck error: %s", err)
-// 	}
-// }
-
-// func testAccCheckVerifiedAccessEndpointPolicyNotRecreated(before, after *ec2.DescribeVerifiedAccessEndpointPolicyResponse) resource.TestCheckFunc {
-// 	return func(s *terraform.State) error {
-// 		if before, after := aws.StringValue(before.VerifiedAccessEndpointPolicyId), aws.StringValue(after.VerifiedAccessEndpointPolicyId); before != after {
-// 			return create.Error(names.EC2, create.ErrActionCheckingNotRecreated, tfec2.ResNameVerifiedAccessEndpointPolicy, aws.StringValue(before.VerifiedAccessEndpointPolicyId), errors.New("recreated"))
-// 		}
-
-// 		return nil
-// 	}
-// }
-
-// func testAccVerifiedAccessEndpointPolicyConfig_basic(rName, version string) string {
 // 	return fmt.Sprintf(`
-// resource "aws_security_group" "test" {
-//   name = %[1]q
+// resource "aws_verifiedaccess_instance" "test" {}
+
+// resource "aws_verifiedaccess_trust_provider" "test" {
+//   policy_reference_name    = "test"
+//   trust_provider_type      = "user"
+//   user_trust_provider_type = "iam-identity-center"
 // }
 
-// resource "aws_ec2_verifiedaccess_endpoint_policy" "test" {
-//   verifiedaccess_endpoint_policy_name             = %[1]q
-//   engine_type             = "ActiveEC2"
-//   engine_version          = %[2]q
-//   host_instance_type      = "ec2.t2.micro"
-//   security_groups         = [aws_security_group.test.id]
-//   authentication_strategy = "simple"
-//   storage_type            = "efs"
-
-//   logs {
-//     general = true
-//   }
-
-//   user {
-//     username = "Test"
-//     password = "TestTest1234"
-//   }
+// resource "aws_verifiedaccess_trust_provider_attachment" "test" {
+//   verified_access_instance_id       = aws_verifiedaccess_instance.test.id
+//   verified_access_trust_provider_id = aws_verifiedaccess_trust_provider.test.id
 // }
-// `, rName, version)
+
+// resource "aws_verifiedaccess_group" "test" {
+//   verified_access_instance_id = aws_verifiedaccess_instance.test.id
+
+//   depends_on = [
+//     aws_verifiedaccess_trust_provider_attachment.test
+//   ]
+// }
+
+// resource "aws_verifiedaccess_endpoint" "test" {
+// 	application_domain     = "test.com"
+// 	attachment_type        = "vpc"
+// 	description            = "test"
+// 	domain_certificate_arn = aws_acm_certificate.test.arn
+// 	endpoint_domain_prefix = "test"
+// 	endpoint_type          = "load-balancer"
+// 	load_balancer_options {
+// 	  load_balancer_arn = aws_lb.test.arn
+// 	  port              = 443
+// 	  protocol          = "https"
+// 	  subnet_ids        = [aws_subnet.test_01.id, aws_subnet.test_02.id]
+// 	}
+// 	security_group_ids       = [aws_security_group.test.id]
+// 	verified_access_group_id = aws_verifiedaccess_group.test.id
+//   }
+
+//   data "aws_availability_zones" "available" {
+// 	state = "available"
+
+// 	filter {
+// 	  name   = "opt-in-status"
+// 	  values = ["opt-in-not-required"]
+// 	}
+//   }
+
+//   resource "aws_vpc" "test" {
+// 	assign_generated_ipv6_cidr_block = true
+// 	cidr_block                       = "10.0.0.0/16"
+//   }
+
+//   resource "aws_subnet" "test_01" {
+// 	availability_zone = data.aws_availability_zones.available.names[0]
+// 	cidr_block        = "10.0.10.0/24"
+// 	vpc_id            = aws_vpc.test.id
+//   }
+
+//   resource "aws_subnet" "test_02" {
+// 	availability_zone = data.aws_availability_zones.available.names[1]
+// 	cidr_block        = "10.0.20.0/24"
+// 	vpc_id            = aws_vpc.test.id
+//   }
+
+//   resource "aws_security_group" "test" {
+// 	vpc_id = aws_vpc.test.id
+//   }
+
+//   resource "aws_lb" "test" {
+// 	internal                   = true
+// 	load_balancer_type         = "application"
+// 	security_groups            = [aws_security_group.test.id]
+// 	subnets                    = [aws_subnet.test_01.id, aws_subnet.test_02.id]
+// 	enable_deletion_protection = false
+//   }
+
+//   resource "aws_lb_listener" "test" {
+// 	load_balancer_arn = aws_lb.test.arn
+// 	port              = "443"
+// 	protocol          = "HTTPS"
+// 	ssl_policy        = "ELBSecurityPolicy-2016-08"
+// 	certificate_arn   = aws_acm_certificate.test.arn
+
+// 	default_action {
+// 	  type             = "forward"
+// 	  target_group_arn = aws_lb_target_group.test.arn
+// 	}
+//   }
+
+//   resource "aws_lb_target_group" "test" {
+// 	name        = "test"
+// 	target_type = "lambda"
+//   }
+
+//   resource "aws_acm_certificate" "test" {
+// 	certificate_body = "%[1]s"
+// 	private_key      = "%[2]s"
+//   }
+// `, acctest.TLSPEMEscapeNewlines(certificate), acctest.TLSPEMEscapeNewlines(key))
+// }
+
+// func testAccVerifiedAccessEndpointPolicyConfig_basic(certificate, key, policy string) string {
+// 	return acctest.ConfigCompose(testAccVerifiedAccessEndpointPolicyConfig_baseConfig(certificate, key), fmt.Sprintf(`
+// resource "aws_verifiedaccess_endpoint_policy" "test" {
+//   policy_document          = %[1]q
+//   verified_access_endpoint_id = aws_verifiedaccess_endpoint.test.id
+// }
+// `, policy))
 // }

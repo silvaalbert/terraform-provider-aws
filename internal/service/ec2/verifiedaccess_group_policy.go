@@ -104,6 +104,7 @@ func resourceVerifiedAccessGroupPolicyRead(ctx context.Context, d *schema.Resour
 	}
 
 	d.Set("policy_document", out.PolicyDocument)
+	d.Set("verified_access_group_id", d.Id())
 
 	return nil
 }
