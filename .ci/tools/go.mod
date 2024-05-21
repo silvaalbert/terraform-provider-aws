@@ -5,7 +5,7 @@ go 1.21.1
 toolchain go1.21.5
 
 require (
-	github.com/YakDriver/tfproviderdocs v0.12.0
+	github.com/YakDriver/tfproviderdocs v0.13.0
 	github.com/client9/misspell v0.3.4
 	github.com/golangci/golangci-lint v1.56.2
 	github.com/hashicorp/copywrite v0.18.0
