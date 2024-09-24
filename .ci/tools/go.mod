@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/go-changelog v0.0.0-20240318095659-4d68c58a6e7f
 	github.com/katbyte/terrafmt v0.5.4
 	github.com/pavius/impi v0.0.3
-	github.com/rhysd/actionlint v1.7.1
+	github.com/rhysd/actionlint v1.7.2
 	github.com/terraform-linters/tflint v0.53.0
 	github.com/uber-go/gopatch v0.4.0
 	mvdan.cc/gofumpt v0.7.0
@@ -316,7 +316,7 @@ require (
 	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/oauth2 v0.22.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/term v0.23.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
